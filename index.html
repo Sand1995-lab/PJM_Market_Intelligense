@@ -87,44 +87,6 @@
         .negative { color: #f87171; }
         .neutral { color: #fbbf24; }
 
-        .zone-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .zone-card {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 1rem;
-            border-radius: 10px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .zone-card:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-2px);
-        }
-
-        .zone-card.selected {
-            background: rgba(74, 222, 128, 0.2);
-            border-color: #4ade80;
-        }
-
-        .zone-name {
-            font-size: 0.9rem;
-            color: #a0c4ff;
-            margin-bottom: 0.5rem;
-        }
-
-        .zone-price {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
         .chart-container {
             position: relative;
             height: 300px;
@@ -188,21 +150,14 @@
             margin: 1rem 0;
         }
 
-        .forecast-section {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .forecast-grid {
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
             margin-top: 1rem;
         }
 
-        .forecast-item {
+        .stat-item {
             text-align: center;
             padding: 1rem;
             background: rgba(255, 255, 255, 0.05);
@@ -235,27 +190,6 @@
         .status-delayed { background: #fbbf24; }
         .status-offline { background: #f87171; }
 
-        .historical-section {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-        }
-
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -284,6 +218,15 @@
             padding: 1rem;
             margin: 1rem 0;
             text-align: center;
+        }
+
+        .info-box {
+            background: rgba(74, 222, 128, 0.2);
+            border: 1px solid #4ade80;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-size: 0.9rem;
         }
 
         /* Mobile Responsiveness */
@@ -328,23 +271,6 @@
                 min-width: unset;
             }
 
-            .zone-grid {
-                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-                gap: 0.75rem;
-            }
-
-            .zone-card {
-                padding: 0.75rem;
-            }
-
-            .zone-name {
-                font-size: 0.8rem;
-            }
-
-            .zone-price {
-                font-size: 1.2rem;
-            }
-
             .chart-container {
                 height: 250px;
             }
@@ -353,14 +279,12 @@
                 height: 350px;
             }
 
-            .stats-grid,
-            .forecast-grid {
+            .stats-grid {
                 grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
                 gap: 0.75rem;
             }
 
-            .stat-item,
-            .forecast-item {
+            .stat-item {
                 padding: 0.75rem;
             }
 
@@ -391,10 +315,6 @@
                 font-size: 1rem;
             }
 
-            .zone-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
             .chart-container {
                 height: 200px;
             }
@@ -409,8 +329,8 @@
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="loading" style="width: 40px; height: 40px; margin-bottom: 1rem;"></div>
-            <div id="loadingText">Loading real-time data...</div>
-            <div style="font-size: 0.9rem; color: #a0c4ff; margin-top: 0.5rem;">Fetching from GridStatus API</div>
+            <div id="loadingText">Loading EIA data...</div>
+            <div style="font-size: 0.9rem; color: #a0c4ff; margin-top: 0.5rem;">Fetching from U.S. Energy Information Administration</div>
         </div>
     </div>
 
@@ -427,14 +347,16 @@
             <div class="control-group">
                 <label>Time Range</label>
                 <select id="timeRange">
-                    <option value="today">Today</option>
-                    <option value="latest" selected>Latest (Real-Time)</option>
+                    <option value="24h" selected>Last 24 Hours</option>
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d">Last 30 Days</option>
                 </select>
             </div>
             <div class="control-group">
-                <label>Primary Zone</label>
-                <select id="primaryZone">
-                    <option value="PJM RTO">PJM RTO</option>
+                <label>Data Source</label>
+                <select id="dataSource">
+                    <option value="demand">System Demand</option>
+                    <option value="generation">Generation Mix</option>
                 </select>
             </div>
             <button class="refresh-btn" onclick="refreshData()">
@@ -444,39 +366,43 @@
 
         <div id="errorContainer"></div>
 
+        <div class="info-box">
+            <strong>Data Source:</strong> U.S. Energy Information Administration (EIA) - Real-time electricity data for PJM Interconnection
+        </div>
+
         <div class="grid">
             <div class="card">
-                <h3>Real-Time LMP - <span id="selectedZoneName">PJM RTO</span></h3>
-                <div class="price-display" id="currentPrice">Loading...</div>
-                <div class="price-change neutral" id="priceChange">Fetching data...</div>
-                <div class="chart-container" id="priceChartContainer">
-                    <canvas id="priceChart"></canvas>
+                <h3>PJM System Demand</h3>
+                <div class="price-display" id="currentDemand">Loading...</div>
+                <div class="price-change neutral" id="demandChange">Fetching data...</div>
+                <div class="chart-container" id="demandChartContainer">
+                    <canvas id="demandChart"></canvas>
                 </div>
             </div>
 
             <div class="card">
-                <h3>System Load</h3>
-                <div class="price-display" id="systemLoad">Loading...</div>
-                <div class="price-change neutral" id="loadChange">Fetching data...</div>
+                <h3>Generation Overview</h3>
+                <div class="price-display" id="totalGeneration">Loading...</div>
+                <div class="price-change neutral" id="generationChange">Fetching data...</div>
                 <div class="chart-container">
-                    <canvas id="loadChart"></canvas>
+                    <canvas id="generationChart"></canvas>
                 </div>
             </div>
 
             <div class="card">
-                <h3>Market Statistics (Today)</h3>
+                <h3>Statistics (Current Period)</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                     <div style="text-align: center;">
-                        <div style="color: #a0c4ff; font-size: 0.9rem;">Peak Price</div>
-                        <div style="font-size: 1.3rem; font-weight: bold;" id="peakPrice">--</div>
+                        <div style="color: #a0c4ff; font-size: 0.9rem;">Peak Demand</div>
+                        <div style="font-size: 1.3rem; font-weight: bold;" id="peakDemand">--</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="color: #a0c4ff; font-size: 0.9rem;">Low Price</div>
-                        <div style="font-size: 1.3rem; font-weight: bold;" id="offPeakPrice">--</div>
+                        <div style="color: #a0c4ff; font-size: 0.9rem;">Low Demand</div>
+                        <div style="font-size: 1.3rem; font-weight: bold;" id="lowDemand">--</div>
                     </div>
                     <div style="text-align: center;">
                         <div style="color: #a0c4ff; font-size: 0.9rem;">Average</div>
-                        <div style="font-size: 1.3rem; font-weight: bold;" id="avgPrice">--</div>
+                        <div style="font-size: 1.3rem; font-weight: bold;" id="avgDemand">--</div>
                     </div>
                     <div style="text-align: center;">
                         <div style="color: #a0c4ff; font-size: 0.9rem;">Data Points</div>
@@ -487,11 +413,11 @@
         </div>
 
         <div class="card">
-            <h3>Zone Pricing Overview <span style="font-size: 0.9rem; color: #a0c4ff;">(Real-time data)</span></h3>
-            <div class="zone-grid" id="zoneGrid">
+            <h3>Generation by Fuel Type</h3>
+            <div class="stats-grid" id="fuelMixGrid">
                 <div style="text-align: center; padding: 2rem; grid-column: 1 / -1;">
                     <div class="loading"></div>
-                    <div style="margin-top: 1rem;">Loading zone data...</div>
+                    <div style="margin-top: 1rem;">Loading generation data...</div>
                 </div>
             </div>
         </div>
@@ -500,15 +426,13 @@
     </div>
 
     <script>
-        // GridStatus API Configuration
-        const API_KEY = '8cd7c27ee4734ad197ed36aeb2914a22';
-        const API_BASE = 'https://api.gridstatus.io/v1';
+        // EIA API Configuration
+        const API_KEY = 'hK7JhW2OHorJigMg2nComEjejKa5KNWQeaeKeU1n';
+        const API_BASE = 'https://api.eia.gov/v2';
         
         // Global variables
-        let priceChart, loadChart;
-        let selectedZone = 'PJM RTO';
+        let demandChart, generationChart;
         let currentData = null;
-        let allZonesData = {};
 
         // Initialize dashboard
         async function initDashboard() {
@@ -542,8 +466,10 @@
             document.getElementById('statusIndicator').className = 'status-indicator status-live';
         }
 
-        async function fetchPJMData(endpoint, params = {}) {
+        async function fetchEIAData(endpoint, params = {}) {
             const url = new URL(`${API_BASE}${endpoint}`);
+            url.searchParams.append('api_key', API_KEY);
+            
             Object.keys(params).forEach(key => {
                 if (params[key] !== null && params[key] !== undefined) {
                     url.searchParams.append(key, params[key]);
@@ -551,17 +477,12 @@
             });
             
             try {
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${API_KEY}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                const response = await fetch(url);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('API Response:', errorText);
-                    throw new Error(`API Error: ${response.status} - ${errorText || response.statusText}`);
+                    throw new Error(`API Error: ${response.status}`);
                 }
                 
                 return await response.json();
@@ -577,11 +498,48 @@
             
             try {
                 const timeRange = document.getElementById('timeRange').value;
+                const hours = getHoursFromRange(timeRange);
                 
-                if (timeRange === 'today') {
-                    await loadTodayData();
-                } else {
-                    await loadLatestData();
+                // Calculate start date
+                const endDate = new Date();
+                const startDate = new Date(endDate.getTime() - hours * 60 * 60 * 1000);
+                
+                const startStr = formatDateForEIA(startDate);
+                const endStr = formatDateForEIA(endDate);
+                
+                // Fetch PJM demand data
+                const demandData = await fetchEIAData('/electricity/rto/region-data/data/', {
+                    frequency: 'hourly',
+                    'data[0]': 'value',
+                    facets: {
+                        respondent: ['PJM'],
+                        type: ['D']
+                    },
+                    start: startStr,
+                    end: endStr,
+                    sort: [{ column: 'period', direction: 'asc' }],
+                    length: 5000
+                });
+                
+                if (demandData && demandData.response && demandData.response.data) {
+                    processDemandData(demandData.response.data);
+                }
+                
+                // Fetch generation data
+                const genData = await fetchEIAData('/electricity/rto/fuel-type-data/data/', {
+                    frequency: 'hourly',
+                    'data[0]': 'value',
+                    facets: {
+                        respondent: ['PJM']
+                    },
+                    start: startStr,
+                    end: endStr,
+                    sort: [{ column: 'period', direction: 'asc' }],
+                    length: 5000
+                });
+                
+                if (genData && genData.response && genData.response.data) {
+                    processGenerationData(genData.response.data);
                 }
                 
                 updateLastUpdateTime();
@@ -593,353 +551,173 @@
             }
         }
 
-        async function loadLatestData() {
-            try {
-                // Fetch latest LMP data for PJM
-                const lmpData = await fetchPJMData('/lmp/latest', {
-                    iso: 'pjm'
-                });
-                
-                if (!lmpData || !lmpData.data || lmpData.data.length === 0) {
-                    throw new Error('No LMP data available');
-                }
-                
-                currentData = lmpData.data;
-                processLatestData(currentData);
-                
-                // Try to fetch load data
-                try {
-                    const loadData = await fetchPJMData('/load/latest', {
-                        iso: 'pjm'
-                    });
-                    if (loadData && loadData.data) {
-                        processLoadData(loadData.data);
-                    }
-                } catch (loadError) {
-                    console.warn('Load data not available:', loadError);
-                    document.getElementById('systemLoad').textContent = 'N/A';
-                    document.getElementById('loadChange').textContent = 'Data unavailable';
-                }
-                
-            } catch (error) {
-                throw new Error(`API request failed: ${error.message}`);
+        function formatDateForEIA(date) {
+            return date.toISOString().slice(0, 13);
+        }
+
+        function getHoursFromRange(range) {
+            switch(range) {
+                case '24h': return 24;
+                case '7d': return 168;
+                case '30d': return 720;
+                default: return 24;
             }
         }
 
-        async function loadTodayData() {
-            const today = new Date();
-            const startDate = new Date(today.setHours(0, 0, 0, 0)).toISOString().split('T')[0];
-            
-            try {
-                // Fetch today's LMP data
-                const lmpData = await fetchPJMData('/lmp', {
-                    iso: 'pjm',
-                    start_date: startDate,
-                    market: 'REAL_TIME_5_MIN'
-                });
-                
-                if (!lmpData || !lmpData.data || lmpData.data.length === 0) {
-                    throw new Error('No data available for today');
-                }
-                
-                currentData = lmpData.data;
-                processTodayData(currentData);
-                
-                // Try to fetch load data
-                try {
-                    const loadData = await fetchPJMData('/load', {
-                        iso: 'pjm',
-                        start_date: startDate
-                    });
-                    if (loadData && loadData.data) {
-                        processTodayLoadData(loadData.data);
-                    }
-                } catch (loadError) {
-                    console.warn('Load data not available:', loadError);
-                }
-                
-            } catch (error) {
-                throw new Error(`Failed to fetch today's data: ${error.message}`);
-            }
-        }
-
-        function processLatestData(data) {
-            // Group by location
-            const locationMap = {};
-            data.forEach(item => {
-                const location = item.location || item.location_name || 'Unknown';
-                if (!locationMap[location]) {
-                    locationMap[location] = [];
-                }
-                locationMap[location].push(item);
-            });
-            
-            allZonesData = locationMap;
-            
-            // Update zone selector
-            updateZoneSelector(Object.keys(locationMap));
-            
-            // Display data for selected zone
-            displayZoneData(selectedZone);
-            
-            // Update zone grid
-            updateZoneGrid();
-        }
-
-        function processTodayData(data) {
-            // Group by location and time
-            const locationMap = {};
-            data.forEach(item => {
-                const location = item.location || item.location_name || 'Unknown';
-                if (!locationMap[location]) {
-                    locationMap[location] = [];
-                }
-                locationMap[location].push(item);
-            });
-            
-            allZonesData = locationMap;
-            
-            // Update zone selector
-            updateZoneSelector(Object.keys(locationMap));
-            
-            // Display chart for selected zone
-            displayTodayChart(selectedZone);
-            
-            // Update zone grid
-            updateZoneGrid();
-        }
-
-        function updateZoneSelector(zones) {
-            const selector = document.getElementById('primaryZone');
-            selector.innerHTML = '';
-            
-            zones.forEach(zone => {
-                const option = document.createElement('option');
-                option.value = zone;
-                option.textContent = zone;
-                if (zone === selectedZone) {
-                    option.selected = true;
-                }
-                selector.appendChild(option);
-            });
-        }
-
-        function displayZoneData(zoneName) {
-            const zoneData = allZonesData[zoneName];
-            if (!zoneData || zoneData.length === 0) {
-                document.getElementById('currentPrice').textContent = 'N/A';
+        function processDemandData(data) {
+            if (!data || data.length === 0) {
+                showError('No demand data available');
                 return;
             }
             
-            // Get the latest price (LMP total)
-            const latest = zoneData[zoneData.length - 1];
-            const price = latest.lmp || latest.total_lmp || latest.price || 0;
+            // Sort by period
+            data.sort((a, b) => new Date(a.period) - new Date(b.period));
             
-            document.getElementById('selectedZoneName').textContent = zoneName;
-            document.getElementById('currentPrice').textContent = `$${price.toFixed(2)}`;
-            
-            // Calculate change if we have multiple data points
-            if (zoneData.length > 1) {
-                const previous = zoneData[zoneData.length - 2];
-                const prevPrice = previous.lmp || previous.total_lmp || previous.price || 0;
-                const change = price - prevPrice;
-                const changePercent = prevPrice !== 0 ? (change / prevPrice) * 100 : 0;
-                
-                const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-                const changeSymbol = change > 0 ? '+' : '';
-                document.getElementById('priceChange').className = `price-change ${changeClass}`;
-                document.getElementById('priceChange').textContent = 
-                    `${changeSymbol}$${change.toFixed(2)} (${changeSymbol}${changePercent.toFixed(1)}%)`;
-            } else {
-                document.getElementById('priceChange').textContent = 'Single data point';
-            }
-            
-            // Update statistics
-            document.getElementById('dataPoints').textContent = zoneData.length;
-            checkPriceAlerts(price);
-        }
-
-        function displayTodayChart(zoneName) {
-            const zoneData = allZonesData[zoneName];
-            if (!zoneData || zoneData.length === 0) {
-                return;
-            }
-            
-            // Sort by time
-            zoneData.sort((a, b) => new Date(a.interval_start) - new Date(b.interval_start));
-            
-            // Extract prices and times
-            const prices = zoneData.map(d => d.lmp || d.total_lmp || d.price || 0);
-            const times = zoneData.map(d => {
-                const date = new Date(d.interval_start);
-                return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            // Extract values
+            const demands = data.map(d => d.value);
+            const times = data.map(d => {
+                const date = new Date(d.period);
+                return date.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
             });
             
             // Update chart
-            priceChart.data.labels = times;
-            priceChart.data.datasets[0].data = prices;
-            priceChart.data.datasets[0].label = `${zoneName} LMP ($/MWh)`;
-            priceChart.update();
+            demandChart.data.labels = times;
+            demandChart.data.datasets[0].data = demands;
+            demandChart.update();
             
             // Calculate statistics
-            const max = Math.max(...prices);
-            const min = Math.min(...prices);
-            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-            const latest = prices[prices.length - 1];
+            const latest = demands[demands.length - 1];
+            const max = Math.max(...demands);
+            const min = Math.min(...demands);
+            const avg = demands.reduce((a, b) => a + b, 0) / demands.length;
             
-            document.getElementById('selectedZoneName').textContent = zoneName;
-            document.getElementById('currentPrice').textContent = `$${latest.toFixed(2)}`;
-            document.getElementById('peakPrice').textContent = `$${max.toFixed(2)}`;
-            document.getElementById('offPeakPrice').textContent = `$${min.toFixed(2)}`;
-            document.getElementById('avgPrice').textContent = `$${avg.toFixed(2)}`;
-            document.getElementById('dataPoints').textContent = prices.length;
+            document.getElementById('currentDemand').textContent = `${latest.toLocaleString()} MW`;
+            document.getElementById('peakDemand').textContent = `${max.toLocaleString()} MW`;
+            document.getElementById('lowDemand').textContent = `${min.toLocaleString()} MW`;
+            document.getElementById('avgDemand').textContent = `${Math.round(avg).toLocaleString()} MW`;
+            document.getElementById('dataPoints').textContent = demands.length;
             
-            // Calculate change from previous
-            if (prices.length > 1) {
-                const previous = prices[prices.length - 2];
+            // Calculate change
+            if (demands.length > 1) {
+                const previous = demands[demands.length - 2];
                 const change = latest - previous;
                 const changePercent = previous !== 0 ? (change / previous) * 100 : 0;
                 
                 const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
                 const changeSymbol = change > 0 ? '+' : '';
-                document.getElementById('priceChange').className = `price-change ${changeClass}`;
-                document.getElementById('priceChange').textContent = 
-                    `${changeSymbol}$${change.toFixed(2)} (${changeSymbol}${changePercent.toFixed(1)}%)`;
+                document.getElementById('demandChange').className = `price-change ${changeClass}`;
+                document.getElementById('demandChange').textContent = 
+                    `${changeSymbol}${Math.round(change).toLocaleString()} MW (${changeSymbol}${changePercent.toFixed(1)}%)`;
             }
             
-            checkPriceAlerts(latest);
+            checkDemandAlerts(latest, max);
         }
 
-        function processLoadData(data) {
-            if (!data || data.length === 0) return;
-            
-            const latest = data[data.length - 1];
-            const load = latest.load || latest.demand || 0;
-            
-            document.getElementById('systemLoad').textContent = `${(load).toLocaleString()} MW`;
-            
-            if (data.length > 1) {
-                const previous = data[data.length - 2];
-                const prevLoad = previous.load || previous.demand || 0;
-                const change = load - prevLoad;
-                const changePercent = prevLoad !== 0 ? (change / prevLoad) * 100 : 0;
-                
-                const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-                const changeSymbol = change > 0 ? '+' : '';
-                document.getElementById('loadChange').className = `price-change ${changeClass}`;
-                document.getElementById('loadChange').textContent = 
-                    `${changeSymbol}${change.toLocaleString()} MW (${changeSymbol}${changePercent.toFixed(1)}%)`;
-            }
-        }
-
-        function processTodayLoadData(data) {
-            if (!data || data.length === 0) return;
-            
-            // Sort by time
-            data.sort((a, b) => new Date(a.interval_start) - new Date(b.interval_start));
-            
-            const loads = data.map(d => d.load || d.demand || 0);
-            const times = data.map(d => {
-                const date = new Date(d.interval_start);
-                return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-            });
-            
-            // Update load chart
-            loadChart.data.labels = times;
-            loadChart.data.datasets[0].data = loads;
-            loadChart.update();
-            
-            const latest = loads[loads.length - 1];
-            document.getElementById('systemLoad').textContent = `${(latest).toLocaleString()} MW`;
-            
-            if (loads.length > 1) {
-                const previous = loads[loads.length - 2];
-                const change = latest - previous;
-                const changePercent = previous !== 0 ? (change / previous) * 100 : 0;
-                
-                const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-                const changeSymbol = change > 0 ? '+' : '';
-                document.getElementById('loadChange').className = `price-change ${changeClass}`;
-                document.getElementById('loadChange').textContent = 
-                    `${changeSymbol}${change.toLocaleString()} MW (${changeSymbol}${changePercent.toFixed(1)}%)`;
-            }
-        }
-
-        function updateZoneGrid() {
-            const zoneGrid = document.getElementById('zoneGrid');
-            zoneGrid.innerHTML = '';
-            
-            const zones = Object.keys(allZonesData);
-            if (zones.length === 0) {
-                zoneGrid.innerHTML = '<div style="text-align: center; padding: 2rem; grid-column: 1 / -1;">No zone data available</div>';
+        function processGenerationData(data) {
+            if (!data || data.length === 0) {
                 return;
             }
             
-            zones.forEach(zoneName => {
-                const zoneData = allZonesData[zoneName];
-                if (!zoneData || zoneData.length === 0) return;
+            // Group by fuel type
+            const fuelTypes = {};
+            const timeSeriesData = {};
+            
+            data.forEach(d => {
+                const fuelType = d.fueltype || d['fuel-type'] || 'Unknown';
+                const time = new Date(d.period).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit'});
                 
-                const latest = zoneData[zoneData.length - 1];
-                const price = latest.lmp || latest.total_lmp || latest.price || 0;
-                
-                let changePercent = 0;
-                if (zoneData.length > 1) {
-                    const previous = zoneData[zoneData.length - 2];
-                    const prevPrice = previous.lmp || previous.total_lmp || previous.price || 0;
-                    if (prevPrice !== 0) {
-                        changePercent = ((price - prevPrice) / prevPrice) * 100;
-                    }
+                if (!fuelTypes[fuelType]) {
+                    fuelTypes[fuelType] = [];
                 }
+                fuelTypes[fuelType].push(d.value);
                 
-                const zoneCard = document.createElement('div');
-                zoneCard.className = `zone-card ${zoneName === selectedZone ? 'selected' : ''}`;
-                zoneCard.onclick = () => selectZone(zoneName);
-                
-                const changeClass = changePercent > 0 ? 'positive' : changePercent < 0 ? 'negative' : 'neutral';
-                
-                zoneCard.innerHTML = `
-                    <div class="zone-name">${zoneName}</div>
-                    <div class="zone-price ${changeClass}">${price.toFixed(2)}</div>
-                    <div style="font-size: 0.8rem; margin-top: 0.3rem;">${changePercent > 0 ? '+' : ''}${changePercent.toFixed(1)}%</div>
-                `;
-                
-                zoneGrid.appendChild(zoneCard);
+                if (!timeSeriesData[fuelType]) {
+                    timeSeriesData[fuelType] = { times: [], values: [] };
+                }
+                timeSeriesData[fuelType].times.push(time);
+                timeSeriesData[fuelType].values.push(d.value);
             });
+            
+            // Calculate totals for each fuel type
+            const fuelMixGrid = document.getElementById('fuelMixGrid');
+            fuelMixGrid.innerHTML = '';
+            
+            const colors = {
+                'NG': '#4ade80',
+                'COL': '#64748b',
+                'NUC': '#8b5cf6',
+                'SUN': '#fbbf24',
+                'WND': '#06b6d4',
+                'WAT': '#3b82f6',
+                'OIL': '#ef4444',
+                'OTH': '#94a3b8'
+            };
+            
+            Object.keys(fuelTypes).forEach(fuelType => {
+                const values = fuelTypes[fuelType];
+                const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                const latest = values[values.length - 1];
+                
+                const fuelNames = {
+                    'NG': 'Natural Gas',
+                    'COL': 'Coal',
+                    'NUC': 'Nuclear',
+                    'SUN': 'Solar',
+                    'WND': 'Wind',
+                    'WAT': 'Hydro',
+                    'OIL': 'Oil',
+                    'OTH': 'Other'
+                };
+                
+                const statItem = document.createElement('div');
+                statItem.className = 'stat-item';
+                statItem.style.borderLeft = `4px solid ${colors[fuelType] || '#94a3b8'}`;
+                statItem.innerHTML = `
+                    <div style="color: #a0c4ff; font-size: 0.9rem;">${fuelNames[fuelType] || fuelType}</div>
+                    <div style="font-size: 1.5rem; font-weight: bold;">${Math.round(latest).toLocaleString()} MW</div>
+                    <div style="font-size: 0.8rem; color: #a0c4ff;">Avg: ${Math.round(avg).toLocaleString()} MW</div>
+                `;
+                fuelMixGrid.appendChild(statItem);
+            });
+            
+            // Update generation chart with stacked data
+            const allTimes = [...new Set(data.map(d => 
+                new Date(d.period).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit'})
+            ))].sort();
+            
+            const datasets = Object.keys(fuelTypes).map(fuelType => {
+                return {
+                    label: fuelType,
+                    data: timeSeriesData[fuelType].values,
+                    backgroundColor: colors[fuelType] || '#94a3b8',
+                    borderColor: colors[fuelType] || '#94a3b8',
+                    borderWidth: 1
+                };
+            });
+            
+            generationChart.data.labels = timeSeriesData[Object.keys(timeSeriesData)[0]].times;
+            generationChart.data.datasets = datasets;
+            generationChart.update();
+            
+            // Calculate total generation
+            const totalGen = Object.values(fuelTypes).reduce((sum, values) => 
+                sum + values[values.length - 1], 0);
+            document.getElementById('totalGeneration').textContent = `${Math.round(totalGen).toLocaleString()} MW`;
         }
 
-        function selectZone(zoneName) {
-            selectedZone = zoneName;
-            document.getElementById('primaryZone').value = zoneName;
-            
-            const timeRange = document.getElementById('timeRange').value;
-            if (timeRange === 'today') {
-                displayTodayChart(zoneName);
-            } else {
-                displayZoneData(zoneName);
-            }
-            
-            updateZoneGrid();
-        }
-
-        function checkPriceAlerts(price) {
+        function checkDemandAlerts(current, peak) {
             const alertsContainer = document.getElementById('alerts');
             
-            if (price > 100) {
+            if (current > 140000) {
                 alertsContainer.innerHTML = `
                     <div class="alert">
-                        <strong>⚠️ High Price Alert:</strong> LMP has exceeded $100/MWh. Current price: ${price.toFixed(2)}
+                        <strong>⚠️ High Demand Alert:</strong> System demand has exceeded 140,000 MW. Current: ${current.toLocaleString()} MW
                     </div>
                 `;
-            } else if (price > 80) {
+            } else if (current > 120000) {
                 alertsContainer.innerHTML = `
                     <div class="alert" style="background: rgba(251, 191, 36, 0.2); border-color: #fbbf24;">
-                        <strong>⚡ Elevated Price:</strong> LMP has exceeded $80/MWh. Current price: ${price.toFixed(2)}
-                    </div>
-                `;
-            } else if (price < 20) {
-                alertsContainer.innerHTML = `
-                    <div class="alert" style="background: rgba(74, 222, 128, 0.2); border-color: #4ade80;">
-                        <strong>📉 Low Price Alert:</strong> LMP has dropped below $20/MWh. Current price: ${price.toFixed(2)}
+                        <strong>⚡ Elevated Demand:</strong> System demand is elevated. Current: ${current.toLocaleString()} MW
                     </div>
                 `;
             } else {
@@ -983,14 +761,14 @@
                 }
             };
 
-            // Price Chart
-            const priceCtx = document.getElementById('priceChart').getContext('2d');
-            priceChart = new Chart(priceCtx, {
+            // Demand Chart
+            const demandCtx = document.getElementById('demandChart').getContext('2d');
+            demandChart = new Chart(demandCtx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'LMP ($/MWh)',
+                        label: 'System Demand (MW)',
                         data: [],
                         borderColor: '#4ade80',
                         backgroundColor: 'rgba(74, 222, 128, 0.1)',
@@ -1003,24 +781,28 @@
                 options: commonOptions
             });
 
-            // Load Chart
-            const loadCtx = document.getElementById('loadChart').getContext('2d');
-            loadChart = new Chart(loadCtx, {
-                type: 'line',
+            // Generation Chart
+            const genCtx = document.getElementById('generationChart').getContext('2d');
+            generationChart = new Chart(genCtx, {
+                type: 'bar',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: 'System Load (MW)',
-                        data: [],
-                        borderColor: '#fbbf24',
-                        backgroundColor: 'rgba(251, 191, 36, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 2,
-                        pointHoverRadius: 5
-                    }]
+                    datasets: []
                 },
-                options: commonOptions
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        x: {
+                            ...commonOptions.scales.x,
+                            stacked: true
+                        },
+                        y: {
+                            ...commonOptions.scales.y,
+                            stacked: true
+                        }
+                    }
+                }
             });
         }
 
@@ -1049,9 +831,9 @@
             loadData();
         });
 
-        // Handle primary zone changes
-        document.getElementById('primaryZone').addEventListener('change', function(e) {
-            selectZone(e.target.value);
+        // Handle data source changes
+        document.getElementById('dataSource').addEventListener('change', function(e) {
+            // Future enhancement: switch between different data views
         });
     </script>
 </body>
