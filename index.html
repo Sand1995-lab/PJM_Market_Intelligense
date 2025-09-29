@@ -544,7 +544,11 @@
 
         async function fetchPJMData(endpoint, params = {}) {
             const url = new URL(`${API_BASE}${endpoint}`);
-            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+            Object.keys(params).forEach(key => {
+                if (params[key] !== null && params[key] !== undefined) {
+                    url.searchParams.append(key, params[key]);
+                }
+            });
             
             try {
                 const response = await fetch(url, {
@@ -555,7 +559,9 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                    const errorText = await response.text();
+                    console.error('API Response:', errorText);
+                    throw new Error(`API Error: ${response.status} - ${errorText || response.statusText}`);
                 }
                 
                 return await response.json();
