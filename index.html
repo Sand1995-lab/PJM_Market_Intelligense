@@ -1,840 +1,629 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PJM Real-Time Energy Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #fff;
-            min-height: 100vh;
-        }
-
-        .header {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 1rem 2rem;
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 300;
-            margin-bottom: 0.5rem;
-        }
-
-        .last-update {
-            color: #a0c4ff;
-            font-size: 0.9rem;
-        }
-
-        .container {
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 1.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-
-        .card h3 {
-            margin-bottom: 1rem;
-            font-size: 1.2rem;
-            color: #a0c4ff;
-        }
-
-        .price-display {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin: 1rem 0;
-            text-align: center;
-        }
-
-        .price-change {
-            text-align: center;
-            font-size: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .positive { color: #4ade80; }
-        .negative { color: #f87171; }
-        .neutral { color: #fbbf24; }
-
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin-top: 1rem;
-        }
-
-        .large-chart {
-            height: 400px;
-        }
-
-        .controls {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            align-items: flex-end;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            flex: 1;
-            min-width: 150px;
-        }
-
-        .control-group label {
-            font-size: 0.9rem;
-            color: #a0c4ff;
-        }
-
-        select, button {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-        }
-
-        select:hover, button:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-        }
-
-        .refresh-btn {
-            background: linear-gradient(45deg, #4ade80, #22c55e);
-            font-weight: bold;
-            padding: 0.75rem 1.5rem;
-            min-width: 150px;
-        }
-
-        .alert {
-            background: rgba(248, 113, 113, 0.2);
-            border: 1px solid #f87171;
-            border-radius: 10px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-
-        .status-live { background: #4ade80; }
-        .status-delayed { background: #fbbf24; }
-        .status-offline { background: #f87171; }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .loading-content {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2rem;
-            border-radius: 15px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-
-        .error-message {
-            background: rgba(248, 113, 113, 0.2);
-            border: 1px solid #f87171;
-            border-radius: 10px;
-            padding: 1rem;
-            margin: 1rem 0;
-            text-align: center;
-        }
-
-        .info-box {
-            background: rgba(74, 222, 128, 0.2);
-            border: 1px solid #4ade80;
-            border-radius: 10px;
-            padding: 1rem;
-            margin: 1rem 0;
-            font-size: 0.9rem;
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .header {
-                padding: 1rem;
-            }
-
-            .header h1 {
-                font-size: 1.5rem;
-            }
-
-            .container {
-                padding: 1rem;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-            }
-
-            .card {
-                padding: 1rem;
-            }
-
-            .price-display {
-                font-size: 2rem;
-            }
-
-            .controls {
-                flex-direction: column;
-                gap: 0.75rem;
-            }
-
-            .control-group {
-                width: 100%;
-                min-width: unset;
-            }
-
-            .refresh-btn {
-                width: 100%;
-                min-width: unset;
-            }
-
-            .chart-container {
-                height: 250px;
-            }
-
-            .large-chart {
-                height: 350px;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                gap: 0.75rem;
-            }
-
-            .stat-item {
-                padding: 0.75rem;
-            }
-
-            .loading-content {
-                padding: 1.5rem;
-                margin: 1rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .header h1 {
-                font-size: 1.2rem;
-            }
-
-            .last-update {
-                font-size: 0.8rem;
-            }
-
-            .price-display {
-                font-size: 1.75rem;
-            }
-
-            .price-change {
-                font-size: 0.9rem;
-            }
-
-            .card h3 {
-                font-size: 1rem;
-            }
-
-            .chart-container {
-                height: 200px;
-            }
-
-            .large-chart {
-                height: 300px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PJM Real-Time Energy Dashboard (Responsive)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    :root{ --bg1:#1e3c72; --bg2:#2a5298; --glass:rgba(255,255,255,.1); --glass-strong:rgba(255,255,255,.2); --ink:#fff; --muted:#a0c4ff; --pos:#4ade80; --neg:#f87171; --neu:#fbbf24; --card-radius:16px; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Calibri,Arial,sans-serif; background:linear-gradient(135deg,var(--bg1),var(--bg2)); color:var(--ink); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; overflow-x:hidden; display:flex; flex-direction:column; }
+    .header{ position:sticky; top:0; z-index:10; backdrop-filter:saturate(120%) blur(8px); background:rgba(0,0,0,.25); border-bottom:1px solid rgba(255,255,255,.12); padding:12px 20px; display:flex; flex-direction:column; gap:6px; }
+    .header h1{margin:0; font-weight:600; font-size:clamp(18px,2.4vw,28px)}
+    .last-update{color:var(--muted); font-size:.95rem; display:flex; align-items:center; gap:.5rem}
+    .status-indicator{width:10px; height:10px; border-radius:999px; display:inline-block}
+    .status-live{background:var(--pos)} .status-delayed{background:var(--neu)} .status-offline{background:var(--neg)}
+    .container{ width:min(1200px, 100% - 24px); margin-inline:auto; padding:18px 0 32px; flex:1; }
+    .controls{display:grid; grid-template-columns:repeat(12,1fr); gap:12px; margin-bottom:16px}
+    .control-group{grid-column:span 4; display:flex; flex-direction:column; gap:6px}
+    .control-group label{color:var(--muted); font-size:.9rem}
+    select, button, input[type="text"]{ appearance:none; outline:none; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.22); background:var(--glass); color:var(--ink); cursor:pointer; transition:.2s ease; }
+    input[type="text"]{cursor:text}
+    select:hover, button:hover{background:var(--glass-strong); transform:translateY(-1px)}
+    .refresh-btn{grid-column:span 12; justify-self:start; background:linear-gradient(45deg,var(--pos),#22c55e); font-weight:700}
+    #compareBtn{font-weight:600}
+    .grid{display:grid; gap:14px; align-items:stretch; grid-template-columns:repeat(12,1fr)}
+    .card{ grid-column:span 12; background:var(--glass); border:1px solid rgba(255,255,255,.18); border-radius:var(--card-radius); padding:14px; backdrop-filter:blur(8px); transition:box-shadow .25s ease, transform .25s ease; min-width:0; }
+    .card:hover{box-shadow:0 12px 28px rgba(0,0,0,.25); transform:translateY(-3px)}
+    .card h3{margin:0 0 10px; font-size:1.05rem; color:var(--muted)}
+    .card:nth-child(1){grid-column:span 12}
+    .card:nth-child(2){grid-column:span 12}
+    .card:nth-child(3){grid-column:span 12}
+    @media (min-width:720px){ .card:nth-child(1){grid-column:span 6} .card:nth-child(2){grid-column:span 6} .card:nth-child(3){grid-column:span 12} }
+    @media (min-width:1000px){ .card:nth-child(1){grid-column:span 5} .card:nth-child(2){grid-column:span 4} .card:nth-child(3){grid-column:span 3} }
+    .price-display{font-size:clamp(24px,4.2vw,40px); font-weight:800; text-align:center}
+    .price-change{text-align:center; font-size:.95rem; margin:.35rem 0 8px}
+    .positive{color:var(--pos)} .negative{color:var(--neg)} .neutral{color:var(--neu)}
+    .chart-container{position:relative; height:280px}
+    .large-chart{height:380px}
+    .zone-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px}
+    .zone-card{background:rgba(0,0,0,.22); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:12px; text-align:center; cursor:pointer; transition:.2s}
+    .zone-card:hover{background:rgba(255,255,255,.12)}
+    .zone-card.selected{outline:2px solid var(--pos); background:rgba(74,222,128,.16)}
+    .zone-name{font-size:.9rem; color:var(--muted); margin-bottom:.25rem}
+    .zone-price{font-size:1.35rem; font-weight:700}
+    .historical-section,.forecast-section{background:rgba(0,0,0,.2); border:1px solid rgba(255,255,255,.15); border-radius:var(--card-radius); padding:14px; margin-top:16px}
+    .stats-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px}
+    .stat-item{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px; text-align:center}
+    .forecast-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-top:10px}
+    .forecast-item{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:10px; text-align:center}
+    .alert{background:rgba(248,113,113,.16); border:1px solid var(--neg); border-radius:12px; padding:12px; margin:12px 0}
+    .loading-overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; place-items:center; z-index:1000}
+    .loading-content{background:rgba(255,255,255,.1); padding:22px; border-radius:16px; text-align:center; border:1px solid rgba(255,255,255,.2)}
+    .loading{display:inline-block; width:20px; height:20px; border:3px solid rgba(255,255,255,.3); border-radius:50%; border-top-color:#fff; animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (max-width:719.98px){ .controls{grid-template-columns:1fr; gap:10px} .control-group{grid-column:1 / -1} .refresh-btn{justify-self:stretch} .chart-container{height:240px} }
+    @media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
+  </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-content">
-            <div class="loading" style="width: 40px; height: 40px; margin-bottom: 1rem;"></div>
-            <div id="loadingText">Loading EIA data...</div>
-            <div style="font-size: 0.9rem; color: #a0c4ff; margin-top: 0.5rem;">Fetching from U.S. Energy Information Administration</div>
-        </div>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading" style="width:40px;height:40px;margin-bottom:12px"></div>
+      <div>Loading data…</div>
+      <div style="font-size:.9rem;color:var(--muted);margin-top:.4rem">This may take a few moments</div>
     </div>
+  </div>
 
-    <div class="header">
-        <h1>PJM Real-Time Energy Market Dashboard</h1>
-        <div class="last-update">
-            <span class="status-indicator status-live" id="statusIndicator"></span>
-            Last Updated: <span id="lastUpdate">Loading...</span>
-        </div>
+  <header class="header" role="banner">
+    <h1>PJM Real-Time Energy Market Dashboard</h1>
+    <div class="last-update">
+      <span class="status-indicator status-live" id="statusDot" aria-hidden="true"></span>
+      <span>Last Updated:</span> <span id="lastUpdate">Loading…</span>
     </div>
+  </header>
 
-    <div class="container">
-        <div class="controls">
-            <div class="control-group">
-                <label>Time Range</label>
-                <select id="timeRange">
-                    <option value="24h" selected>Last 24 Hours</option>
-                    <option value="7d">Last 7 Days</option>
-                    <option value="30d">Last 30 Days</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Data Source</label>
-                <select id="dataSource">
-                    <option value="demand">System Demand</option>
-                    <option value="generation">Generation Mix</option>
-                </select>
-            </div>
-            <button class="refresh-btn" onclick="refreshData()">
-                <span id="refreshIcon">🔄</span> Refresh Data
-            </button>
+  <main class="container" role="main">
+    <section class="controls" aria-label="Controls">
+      <div class="control-group">
+        <label for="timeRange">Time Range</label>
+        <select id="timeRange" aria-label="Time Range">
+          <option value="1h">Last Hour</option>
+          <option value="6h">Last 6 Hours</option>
+          <option value="24h" selected>Last 24 Hours</option>
+          <option value="7d">Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+          <option value="365d">Last 365 Days</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="primaryZone">Primary Zone</label>
+        <select id="primaryZone" aria-label="Primary Zone"></select>
+      </div>
+      <div class="control-group">
+        <label>Compare Zones</label>
+        <button id="compareBtn" type="button">Enable Compare</button>
+      </div>
+      <div class="control-group" style="grid-column:span 6">
+        <label for="eiaKey">EIA API Key</label>
+        <input id="eiaKey" type="text" placeholder="Enter EIA API key"
+               value="hK7JhW2OHorJigMg2nComEjejKa5KNWQeaeKeU1n" />
+        <div style="display:flex; gap:8px; margin-top:6px">
+          <button type="button" id="connectBtn">Connect & Load</button>
+          <button type="button" class="refresh-btn" id="autoBtn" style="background:transparent;border-color:rgba(255,255,255,.3)">
+            <span id="autoTick">⏱️</span> Auto Refresh
+          </button>
         </div>
+      </div>
+      <button class="refresh-btn" type="button" id="refreshBtn">
+        <span id="refreshIcon">🔄</span> Refresh Data
+      </button>
+    </section>
 
-        <div id="errorContainer"></div>
-
-        <div class="info-box">
-            <strong>Data Source:</strong> U.S. Energy Information Administration (EIA) - Real-time electricity data for PJM Interconnection
+    <section class="grid" aria-label="Overview">
+      <article class="card">
+        <h3>Real-Time LMP – <span id="selectedZoneName">RTO Average</span></h3>
+        <div class="price-display" id="currentPrice">$—</div>
+        <div class="price-change neutral" id="priceChange">Waiting for data…</div>
+        <div class="chart-container" id="priceChartContainer">
+          <canvas id="priceChart" aria-label="LMP chart"></canvas>
         </div>
+      </article>
 
-        <div class="grid">
-            <div class="card">
-                <h3>PJM System Demand</h3>
-                <div class="price-display" id="currentDemand">Loading...</div>
-                <div class="price-change neutral" id="demandChange">Fetching data...</div>
-                <div class="chart-container" id="demandChartContainer">
-                    <canvas id="demandChart"></canvas>
-                </div>
-            </div>
+      <article class="card">
+        <h3>System Load</h3>
+        <div class="price-display" id="systemLoad">— MW</div>
+        <div class="price-change neutral" id="loadChange">Waiting for data…</div>
+        <div class="chart-container"><canvas id="loadChart" aria-label="Load chart"></canvas></div>
+      </article>
 
-            <div class="card">
-                <h3>Generation Overview</h3>
-                <div class="price-display" id="totalGeneration">Loading...</div>
-                <div class="price-change neutral" id="generationChange">Fetching data...</div>
-                <div class="chart-container">
-                    <canvas id="generationChart"></canvas>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>Statistics (Current Period)</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-                    <div style="text-align: center;">
-                        <div style="color: #a0c4ff; font-size: 0.9rem;">Peak Demand</div>
-                        <div style="font-size: 1.3rem; font-weight: bold;" id="peakDemand">--</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: #a0c4ff; font-size: 0.9rem;">Low Demand</div>
-                        <div style="font-size: 1.3rem; font-weight: bold;" id="lowDemand">--</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: #a0c4ff; font-size: 0.9rem;">Average</div>
-                        <div style="font-size: 1.3rem; font-weight: bold;" id="avgDemand">--</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="color: #a0c4ff; font-size: 0.9rem;">Data Points</div>
-                        <div style="font-size: 1.3rem; font-weight: bold;" id="dataPoints">--</div>
-                    </div>
-                </div>
-            </div>
+      <article class="card">
+        <h3>Market Statistics</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+          <div style="text-align:center"><div style="color:var(--muted);font-size:.9rem">Peak Price</div><div style="font-size:1.2rem;font-weight:700" id="peakPrice">—</div></div>
+          <div style="text-align:center"><div style="color:var(--muted);font-size:.9rem">Off-Peak</div><div style="font-size:1.2rem;font-weight:700" id="offPeakPrice">—</div></div>
+          <div style="text-align:center"><div style="color:var(--muted);font-size:.9rem">Average</div><div style="font-size:1.2rem;font-weight:700" id="avgPrice">—</div></div>
+          <div style="text-align:center"><div style="color:var(--muted);font-size:.9rem">Volatility</div><div style="font-size:1.2rem;font-weight:700" id="volatility">—</div></div>
         </div>
+      </article>
+    </section>
 
-        <div class="card">
-            <h3>Generation by Fuel Type</h3>
-            <div class="stats-grid" id="fuelMixGrid">
-                <div style="text-align: center; padding: 2rem; grid-column: 1 / -1;">
-                    <div class="loading"></div>
-                    <div style="margin-top: 1rem;">Loading generation data...</div>
-                </div>
-            </div>
-        </div>
+    <article class="card">
+      <h3>Zone Pricing Overview <span style="font-size:.9rem;color:var(--muted)">(Tap to select/compare)</span></h3>
+      <div class="zone-grid" id="zoneGrid"></div>
+    </article>
 
-        <div id="alerts"></div>
-    </div>
+    <section class="historical-section" id="historicalSection" hidden>
+      <h3 style="margin-bottom:.6rem;color:var(--muted)">365-Day Historical Analysis</h3>
+      <div class="stats-grid">
+        <div class="stat-item"><div style="color:var(--muted);font-size:.9rem">Yearly High</div><div style="font-size:1.3rem;font-weight:700" id="yearlyHigh">—</div><div style="font-size:.8rem;color:var(--neg)" id="yearlyHighDate">—</div></div>
+        <div class="stat-item"><div style="color:var(--muted);font-size:.9rem">Yearly Low</div><div style="font-size:1.3rem;font-weight:700" id="yearlyLow">—</div><div style="font-size:.8rem;color:var(--pos)" id="yearlyLowDate">—</div></div>
+        <div class="stat-item"><div style="color:var(--muted);font-size:.9rem">Average Price</div><div style="font-size:1.3rem;font-weight:700" id="yearlyAvg">—</div><div style="font-size:.8rem;color:var(--neu)" id="yearlyStd">±— StdDev</div></div>
+        <div class="stat-item"><div style="color:var(--muted);font-size:.9rem">Days > $100</div><div style="font-size:1.3rem;font-weight:700" id="highPriceDays">—</div><div style="font-size:.8rem;color:var(--neg)">—</div></div>
+        <div class="stat-item"><div style="color:var(--muted);font-size:.9rem">Peak Season Avg</div><div style="font-size:1.3rem;font-weight:700" id="peakSeasonAvg">—</div><div style="font-size:.8rem;color:var(--neu)">Jun–Aug</div></div>
+        <div class="stat-item"><div style="color:var(--muted);font-size:.9rem">Off-Peak Season</div><div style="font-size:1.3rem;font-weight:700" id="offPeakSeasonAvg">—</div><div style="font-size:.8rem;color:var(--pos)">Dec–Feb</div></div>
+      </div>
+    </section>
 
-    <script>
-        // EIA API Configuration
-        const API_KEY = 'hK7JhW2OHorJigMg2nComEjejKa5KNWQeaeKeU1n';
-        const API_BASE = 'https://api.eia.gov/v2';
-        
-        // Global variables
-        let demandChart, generationChart;
-        let currentData = null;
+    <section class="forecast-section">
+      <h3 style="margin-bottom:.6rem;color:var(--muted)">24-Hour Price Forecast</h3>
+      <div class="chart-container"><canvas id="forecastChart" aria-label="Forecast chart"></canvas></div>
+      <div class="forecast-grid">
+        <div class="forecast-item"><div style="color:var(--muted);font-size:.9rem">Next Hour</div><div style="font-size:1.2rem;font-weight:700" id="fcNextHour">—</div><div style="font-size:.8rem;color:var(--pos)" id="fcNextPct">—</div></div>
+        <div class="forecast-item"><div style="color:var(--muted);font-size:.9rem">Peak Today</div><div style="font-size:1.2rem;font-weight:700" id="fcPeakToday">—</div><div style="font-size:.8rem;color:var(--neg)">High Risk</div></div>
+        <div class="forecast-item"><div style="color:var(--muted);font-size:.9rem">Tomorrow Avg</div><div style="font-size:1.2rem;font-weight:700" id="fcTomorrow">—</div><div style="font-size:.8rem;color:var(--pos)">Favorable</div></div>
+        <div class="forecast-item"><div style="color:var(--muted);font-size:.9rem">Week Trend</div><div style="font-size:1.2rem;font-weight:700" id="fcWeek">—</div><div style="font-size:.8rem;color:var(--neu)">Monitor</div></div>
+      </div>
+    </section>
 
-        // Initialize dashboard
-        async function initDashboard() {
-            updateLastUpdateTime();
-            initializeCharts();
-            await loadData();
-            
-            // Set up auto-refresh every 5 minutes
-            setInterval(() => {
-                refreshData();
-            }, 300000);
-        }
+    <div id="alerts" aria-live="polite"></div>
+  </main>
 
-        function updateLastUpdateTime() {
-            const now = new Date();
-            document.getElementById('lastUpdate').textContent = now.toLocaleString();
-        }
+  <script>
+    // ===== Config =====
+    const DEFAULT_RESPONDENT = 'PJM'; // RTO code in EIA
+    let EIA_KEY = '';
+    let autoTimer = null;
 
-        function showError(message) {
-            const errorContainer = document.getElementById('errorContainer');
-            errorContainer.innerHTML = `
-                <div class="error-message">
-                    <strong>⚠️ Error:</strong> ${message}
-                </div>
-            `;
-            document.getElementById('statusIndicator').className = 'status-indicator status-offline';
-        }
+    // ===== Data (zones remain simulated for comparison) =====
+    const pjmZones = [
+      { code: 'RTO', name: 'RTO Average', price: 45.67, selected: true },
+      { code: 'AECO', name: 'Atlantic Electric', price: 47.23, selected: false },
+      { code: 'AEP', name: 'American Electric Power', price: 43.89, selected: false },
+      { code: 'BGE', name: 'Baltimore Gas & Electric', price: 46.78, selected: false },
+      { code: 'COMED', name: 'Commonwealth Edison', price: 41.56, selected: false },
+      { code: 'DAYTON', name: 'Dayton Power & Light', price: 44.12, selected: false },
+      { code: 'DEOK', name: 'Duke Energy OH/KY', price: 42.67, selected: false },
+      { code: 'DOM', name: 'Dominion Virginia', price: 48.91, selected: false },
+      { code: 'DPL', name: 'Delmarva Power', price: 46.45, selected: false },
+      { code: 'DUQ', name: 'Duquesne Light', price: 43.78, selected: false },
+      { code: 'JCPL', name: 'Jersey Central', price: 49.23, selected: false },
+      { code: 'METED', name: 'Metropolitan Edison', price: 45.34, selected: false },
+      { code: 'PECO', name: 'PECO Energy', price: 47.89, selected: false },
+      { code: 'PENELEC', name: 'Penn Electric', price: 44.67, selected: false },
+      { code: 'PEPCO', name: 'Potomac Electric', price: 48.12, selected: false },
+      { code: 'PPL', name: 'PPL Electric', price: 45.56, selected: false },
+      { code: 'PSEG', name: 'PSE&G', price: 50.23, selected: false },
+      { code: 'RECO', name: 'Rockland Electric', price: 51.45, selected: false }
+    ];
 
-        function clearError() {
-            document.getElementById('errorContainer').innerHTML = '';
-            document.getElementById('statusIndicator').className = 'status-indicator status-live';
-        }
+    let priceChart, loadChart, forecastChart;
+    let compareMode=false, selectedZones=['RTO'];
+    let historicalData={};
 
-        async function fetchEIAData(endpoint, params = {}) {
-            const url = new URL(`${API_BASE}${endpoint}`);
-            url.searchParams.append('api_key', API_KEY);
-            
-            Object.keys(params).forEach(key => {
-                if (params[key] !== null && params[key] !== undefined) {
-                    url.searchParams.append(key, params[key]);
-                }
-            });
-            
-            try {
-                const response = await fetch(url);
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('API Response:', errorText);
-                    throw new Error(`API Error: ${response.status}`);
-                }
-                
-                return await response.json();
-            } catch (error) {
-                console.error('Fetch error:', error);
-                throw error;
-            }
-        }
+    // ===== EIA Helpers (V2 API) =====
+    function buildEiaUrl({type, respondent=DEFAULT_RESPONDENT, hours=24}){
+      const now = new Date();
+      const end = now.toISOString().slice(0,13); // YYYY-MM-DDTHH
+      const startDate = new Date(now.getTime() - hours*60*60*1000).toISOString().slice(0,13);
+      const params = new URLSearchParams({
+        api_key: EIA_KEY,
+        frequency: 'hourly',
+        'data[0]': 'value',
+        'facets[respondent][]': respondent,
+        'facets[type][]': type, // LMP or D
+        start: startDate,
+        end: end,
+        sort: '[{"column":"period","direction":"asc"}]',
+        offset: '0',
+        length: String(hours+2)
+      });
+      return `https://api.eia.gov/v2/electricity/rto/region-data/data/?${params.toString()}`;
+    }
 
-        async function loadData() {
-            showLoadingOverlay();
-            clearError();
-            
-            try {
-                const timeRange = document.getElementById('timeRange').value;
-                const hours = getHoursFromRange(timeRange);
-                
-                // Calculate start date
-                const endDate = new Date();
-                const startDate = new Date(endDate.getTime() - hours * 60 * 60 * 1000);
-                
-                const startStr = formatDateForEIA(startDate);
-                const endStr = formatDateForEIA(endDate);
-                
-                // Fetch PJM demand data
-                const demandData = await fetchEIAData('/electricity/rto/region-data/data/', {
-                    frequency: 'hourly',
-                    'data[0]': 'value',
-                    facets: {
-                        respondent: ['PJM'],
-                        type: ['D']
-                    },
-                    start: startStr,
-                    end: endStr,
-                    sort: [{ column: 'period', direction: 'asc' }],
-                    length: 5000
-                });
-                
-                if (demandData && demandData.response && demandData.response.data) {
-                    processDemandData(demandData.response.data);
-                }
-                
-                // Fetch generation data
-                const genData = await fetchEIAData('/electricity/rto/fuel-type-data/data/', {
-                    frequency: 'hourly',
-                    'data[0]': 'value',
-                    facets: {
-                        respondent: ['PJM']
-                    },
-                    start: startStr,
-                    end: endStr,
-                    sort: [{ column: 'period', direction: 'asc' }],
-                    length: 5000
-                });
-                
-                if (genData && genData.response && genData.response.data) {
-                    processGenerationData(genData.response.data);
-                }
-                
-                updateLastUpdateTime();
-                hideLoadingOverlay();
-            } catch (error) {
-                console.error('Error loading data:', error);
-                showError(`Failed to load data: ${error.message}. Please check your API key and try again.`);
-                hideLoadingOverlay();
-            }
-        }
+    async function fetchEiaSeries(type, hours=24){
+      if(!EIA_KEY) throw new Error('Missing EIA API key');
+      const url = buildEiaUrl({type, hours});
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(\`EIA \${type} HTTP \${res.status}\`);
+      const json = await res.json();
+      if(!json || !json.response || !json.response.data) throw new Error(\`EIA \${type} malformed response\`);
+      const rows = json.response.data
+        .filter(r => r.value !== null && r.period) // robust
+        .map(r=>({ period: r.period, value: Number(r.value) }));
+      if(!rows.length) throw new Error('EIA returned empty series');
+      return rows;
+    }
 
-        function formatDateForEIA(date) {
-            return date.toISOString().slice(0, 13);
-        }
+    function seriesToLabels(series){
+      return series.map(r=>{
+        const d = new Date(r.period);
+        return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      });
+    }
 
-        function getHoursFromRange(range) {
-            switch(range) {
-                case '24h': return 24;
-                case '7d': return 168;
-                case '30d': return 720;
-                default: return 24;
-            }
-        }
+    // ===== Forecast util (deterministic: smoothing + trend) =====
+    function makeForecastFromSeries(values, steps=12){
+      // Holt’s linear trend (very lightweight)
+      const alpha=0.4, beta=0.2;
+      let level=values[0], trend=values[1]-values[0];
+      for(let t=1;t<values.length;t++){
+        const lastLevel=level;
+        level = alpha*values[t] + (1-alpha)*(level + trend);
+        trend = beta*(level - lastLevel) + (1-beta)*trend;
+      }
+      const fc=[];
+      for(let k=1;k<=steps;k++){ fc.push(Number((level + k*trend).toFixed(2))); }
+      return fc;
+    }
 
-        function processDemandData(data) {
-            if (!data || data.length === 0) {
-                showError('No demand data available');
-                return;
-            }
-            
-            // Sort by period
-            data.sort((a, b) => new Date(a.period) - new Date(b.period));
-            
-            // Extract values
-            const demands = data.map(d => d.value);
-            const times = data.map(d => {
-                const date = new Date(d.period);
-                return date.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
-            });
-            
-            // Update chart
-            demandChart.data.labels = times;
-            demandChart.data.datasets[0].data = demands;
-            demandChart.update();
-            
-            // Calculate statistics
-            const latest = demands[demands.length - 1];
-            const max = Math.max(...demands);
-            const min = Math.min(...demands);
-            const avg = demands.reduce((a, b) => a + b, 0) / demands.length;
-            
-            document.getElementById('currentDemand').textContent = `${latest.toLocaleString()} MW`;
-            document.getElementById('peakDemand').textContent = `${max.toLocaleString()} MW`;
-            document.getElementById('lowDemand').textContent = `${min.toLocaleString()} MW`;
-            document.getElementById('avgDemand').textContent = `${Math.round(avg).toLocaleString()} MW`;
-            document.getElementById('dataPoints').textContent = demands.length;
-            
-            // Calculate change
-            if (demands.length > 1) {
-                const previous = demands[demands.length - 2];
-                const change = latest - previous;
-                const changePercent = previous !== 0 ? (change / previous) * 100 : 0;
-                
-                const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-                const changeSymbol = change > 0 ? '+' : '';
-                document.getElementById('demandChange').className = `price-change ${changeClass}`;
-                document.getElementById('demandChange').textContent = 
-                    `${changeSymbol}${Math.round(change).toLocaleString()} MW (${changeSymbol}${changePercent.toFixed(1)}%)`;
-            }
-            
-            checkDemandAlerts(latest, max);
-        }
+    function generateForecastLabels(){
+      const labels=[]; const now=new Date();
+      for(let i=12; i>=1; i--){ const t=new Date(now.getTime()-i*3600*1000); labels.push(t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})); }
+      for(let i=1; i<=12; i++){ const t=new Date(now.getTime()+i*3600*1000); labels.push(t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})); }
+      return labels; // 24 labels
+    }
 
-        function processGenerationData(data) {
-            if (!data || data.length === 0) {
-                return;
-            }
-            
-            // Group by fuel type
-            const fuelTypes = {};
-            const timeSeriesData = {};
-            
-            data.forEach(d => {
-                const fuelType = d.fueltype || d['fuel-type'] || 'Unknown';
-                const time = new Date(d.period).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit'});
-                
-                if (!fuelTypes[fuelType]) {
-                    fuelTypes[fuelType] = [];
-                }
-                fuelTypes[fuelType].push(d.value);
-                
-                if (!timeSeriesData[fuelType]) {
-                    timeSeriesData[fuelType] = { times: [], values: [] };
-                }
-                timeSeriesData[fuelType].times.push(time);
-                timeSeriesData[fuelType].values.push(d.value);
-            });
-            
-            // Calculate totals for each fuel type
-            const fuelMixGrid = document.getElementById('fuelMixGrid');
-            fuelMixGrid.innerHTML = '';
-            
-            const colors = {
-                'NG': '#4ade80',
-                'COL': '#64748b',
-                'NUC': '#8b5cf6',
-                'SUN': '#fbbf24',
-                'WND': '#06b6d4',
-                'WAT': '#3b82f6',
-                'OIL': '#ef4444',
-                'OTH': '#94a3b8'
-            };
-            
-            Object.keys(fuelTypes).forEach(fuelType => {
-                const values = fuelTypes[fuelType];
-                const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                const latest = values[values.length - 1];
-                
-                const fuelNames = {
-                    'NG': 'Natural Gas',
-                    'COL': 'Coal',
-                    'NUC': 'Nuclear',
-                    'SUN': 'Solar',
-                    'WND': 'Wind',
-                    'WAT': 'Hydro',
-                    'OIL': 'Oil',
-                    'OTH': 'Other'
-                };
-                
-                const statItem = document.createElement('div');
-                statItem.className = 'stat-item';
-                statItem.style.borderLeft = `4px solid ${colors[fuelType] || '#94a3b8'}`;
-                statItem.innerHTML = `
-                    <div style="color: #a0c4ff; font-size: 0.9rem;">${fuelNames[fuelType] || fuelType}</div>
-                    <div style="font-size: 1.5rem; font-weight: bold;">${Math.round(latest).toLocaleString()} MW</div>
-                    <div style="font-size: 0.8rem; color: #a0c4ff;">Avg: ${Math.round(avg).toLocaleString()} MW</div>
-                `;
-                fuelMixGrid.appendChild(statItem);
-            });
-            
-            // Update generation chart with stacked data
-            const allTimes = [...new Set(data.map(d => 
-                new Date(d.period).toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit'})
-            ))].sort();
-            
-            const datasets = Object.keys(fuelTypes).map(fuelType => {
-                return {
-                    label: fuelType,
-                    data: timeSeriesData[fuelType].values,
-                    backgroundColor: colors[fuelType] || '#94a3b8',
-                    borderColor: colors[fuelType] || '#94a3b8',
-                    borderWidth: 1
-                };
-            });
-            
-            generationChart.data.labels = timeSeriesData[Object.keys(timeSeriesData)[0]].times;
-            generationChart.data.datasets = datasets;
-            generationChart.update();
-            
-            // Calculate total generation
-            const totalGen = Object.values(fuelTypes).reduce((sum, values) => 
-                sum + values[values.length - 1], 0);
-            document.getElementById('totalGeneration').textContent = `${Math.round(totalGen).toLocaleString()} MW`;
-        }
+    // ===== Init =====
+    document.addEventListener('DOMContentLoaded', () => {
+      updateLastUpdateTime();
+      populatePrimaryZoneSelect();
+      populateZoneGrid();
+      initializeCharts();
 
-        function checkDemandAlerts(current, peak) {
-            const alertsContainer = document.getElementById('alerts');
-            
-            if (current > 140000) {
-                alertsContainer.innerHTML = `
-                    <div class="alert">
-                        <strong>⚠️ High Demand Alert:</strong> System demand has exceeded 140,000 MW. Current: ${current.toLocaleString()} MW
-                    </div>
-                `;
-            } else if (current > 120000) {
-                alertsContainer.innerHTML = `
-                    <div class="alert" style="background: rgba(251, 191, 36, 0.2); border-color: #fbbf24;">
-                        <strong>⚡ Elevated Demand:</strong> System demand is elevated. Current: ${current.toLocaleString()} MW
-                    </div>
-                `;
-            } else {
-                alertsContainer.innerHTML = '';
-            }
-        }
+      document.getElementById('connectBtn').addEventListener('click', () => window.connectEIA());
+      document.getElementById('autoBtn').addEventListener('click', toggleAutoRefresh);
+      document.getElementById('refreshBtn').addEventListener('click', refreshData);
+      document.getElementById('compareBtn').addEventListener('click', toggleCompareMode);
+      document.getElementById('timeRange').addEventListener('change', onRangeChange);
+      document.getElementById('primaryZone').addEventListener('change', (e)=>{ if(!compareMode){ selectZone(e.target.value) }});
 
-        function initializeCharts() {
-            const commonOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
-                plugins: {
-                    legend: { 
-                        display: true,
-                        labels: { color: '#a0c4ff' }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        borderColor: '#4ade80',
-                        borderWidth: 1
-                    }
-                },
-                scales: {
-                    y: {
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: { color: '#a0c4ff' }
-                    },
-                    x: {
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: { 
-                            color: '#a0c4ff',
-                            maxTicksLimit: 20
-                        }
-                    }
-                }
-            };
+      // default key from input
+      EIA_KEY = document.getElementById('eiaKey').value.trim();
 
-            // Demand Chart
-            const demandCtx = document.getElementById('demandChart').getContext('2d');
-            demandChart = new Chart(demandCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'System Demand (MW)',
-                        data: [],
-                        borderColor: '#4ade80',
-                        backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 2,
-                        pointHoverRadius: 5
-                    }]
-                },
-                options: commonOptions
-            });
+      // quick smoke tests
+      console.groupCollapsed('%cDashboard tests','color:#4ade80');
+      console.assert(buildEiaUrl({type:'LMP'}).includes('/v2/electricity/rto/region-data/data/'),'EIA URL path');
+      console.assert(Array.isArray(makeForecastFromSeries([10,11,12],3)),'forecast exists');
+      console.groupEnd();
+    });
 
-            // Generation Chart
-            const genCtx = document.getElementById('generationChart').getContext('2d');
-            generationChart = new Chart(genCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: []
-                },
-                options: {
-                    ...commonOptions,
-                    scales: {
-                        ...commonOptions.scales,
-                        x: {
-                            ...commonOptions.scales.x,
-                            stacked: true
-                        },
-                        y: {
-                            ...commonOptions.scales.y,
-                            stacked: true
-                        }
-                    }
-                }
-            });
-        }
+    // Expose connectEIA globally
+    window.connectEIA = async function connectEIA(){
+      EIA_KEY = document.getElementById('eiaKey').value.trim();
+      if(!EIA_KEY){ alert('Please paste a valid EIA API key.'); return; }
+      await refreshFromEIA();
+    }
 
-        function showLoadingOverlay() {
-            document.getElementById('loadingOverlay').style.display = 'flex';
-        }
+    function toggleAutoRefresh(){
+      if(autoTimer){
+        clearInterval(autoTimer); autoTimer=null; document.getElementById('autoTick').textContent='⏱️';
+      } else {
+        autoTimer = setInterval(refreshFromEIA, 60_000);
+        document.getElementById('autoTick').textContent='✅';
+      }
+    }
 
-        function hideLoadingOverlay() {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }
+    async function refreshFromEIA(){
+      showLoadingOverlay();
+      try{
+        const hours = Math.min(getHoursFromRange(document.getElementById('timeRange').value), 24);
+        const [lmp, demand] = await Promise.all([
+          fetchEiaSeries('LMP', hours),
+          fetchEiaSeries('D',   hours)
+        ]);
 
-        async function refreshData() {
-            const refreshIcon = document.getElementById('refreshIcon');
-            refreshIcon.innerHTML = '<div class="loading"></div>';
-            
-            await loadData();
-            
-            refreshIcon.textContent = '🔄';
-        }
+        // status dot is live if last sample within past 2 hours
+        const lastPeriod = new Date(lmp.at(-1).period);
+        const ageH = (Date.now() - lastPeriod.getTime())/3600000;
+        document.getElementById('statusDot').className =
+          'status-indicator ' + (ageH<=2 ? 'status-live' : ageH<=6 ? 'status-delayed' : 'status-offline');
 
-        // Initialize dashboard when page loads
-        document.addEventListener('DOMContentLoaded', initDashboard);
+        // Price card
+        const labels = seriesToLabels(lmp);
+        const lmpValues = lmp.map(d=>d.value);
+        const current = lmpValues.at(-1);
+        const prev = lmpValues.at(-2) ?? current;
+        document.getElementById('currentPrice').textContent = `$${current.toFixed(2)}`;
+        const diff = current-prev; const pct = (diff/prev)*100;
+        const chEl = document.getElementById('priceChange');
+        chEl.className = `price-change ${diff>0?'positive':diff<0?'negative':'neutral'}`;
+        chEl.textContent = `${diff>0?'+':''}${diff.toFixed(2)} (${isFinite(pct)?(diff>0?'+':'')+pct.toFixed(1)+'%':'0.0%'})`;
 
-        // Handle time range changes
-        document.getElementById('timeRange').addEventListener('change', function(e) {
-            loadData();
+        priceChart.data.labels = labels;
+        priceChart.data.datasets = [{
+          label:'PJM LMP ($/MWh)', data: lmpValues,
+          borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,.12)',
+          tension:.3, fill:true, pointRadius:2
+        }];
+        priceChart.update();
+
+        // Load
+        const loadVals = demand.map(d=>d.value);
+        document.getElementById('systemLoad').textContent =
+          `${Math.round(loadVals.at(-1) || 0).toLocaleString()} MW`;
+        loadChart.data.labels = seriesToLabels(demand);
+        loadChart.data.datasets[0].data = loadVals;
+        loadChart.update();
+
+        // Forecast: 12-hr ahead from last 12 observed points
+        const histForFc = lmpValues.slice(-12);
+        const fc = makeForecastFromSeries(histForFc, 12);
+        const fcLabels = generateForecastLabels();
+        forecastChart.data.labels = fcLabels;
+        forecastChart.data.datasets = [
+          { label:'Historical', data:[...lmpValues.slice(-12), ...Array(12).fill(null)],
+            borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,.12)', tension:.3, pointRadius:2, spanGaps:true },
+          { label:'Forecast',   data:[...Array(12).fill(null), ...fc],
+            borderColor:'#f87171', backgroundColor:'rgba(248,113,113,.12)', borderDash:[5,5], tension:.3, pointRadius:2, spanGaps:true }
+        ];
+        forecastChart.update();
+
+        // Forecast tiles
+        const nextHour = fc[0];
+        const nextPct = ((nextHour - current)/current)*100;
+        document.getElementById('fcNextHour').textContent = `$${nextHour.toFixed(2)}`;
+        document.getElementById('fcNextPct').textContent = `${nextPct>=0?'+':''}${nextPct.toFixed(1)}%`;
+
+        const todayPeak = Math.max(...[...lmpValues.slice(-12), ...fc]);
+        document.getElementById('fcPeakToday').textContent = `$${todayPeak.toFixed(2)}`;
+
+        const tomorrowAvg = fc.reduce((a,b)=>a+b,0)/fc.length;
+        document.getElementById('fcTomorrow').textContent = `$${tomorrowAvg.toFixed(2)}`;
+
+        const weekTrend = (fc.at(-1) - histForFc[0]);
+        document.getElementById('fcWeek').textContent = weekTrend>=0 ? 'Upward' : 'Downward';
+
+        // Stats
+        const max = Math.max(...lmpValues); const min = Math.min(...lmpValues);
+        const avg = lmpValues.reduce((a,b)=>a+b,0)/lmpValues.length;
+        const std = Math.sqrt(lmpValues.reduce((a,v)=>a+(v-avg)**2,0)/lmpValues.length);
+        document.getElementById('peakPrice').textContent = `$${max.toFixed(2)}`;
+        document.getElementById('offPeakPrice').textContent = `$${min.toFixed(2)}`;
+        document.getElementById('avgPrice').textContent = `$${avg.toFixed(2)}`;
+        document.getElementById('volatility').textContent = std>30?'High': std>15?'Medium':'Low';
+
+        checkPriceAlerts(current);
+      } catch(err){
+        console.error(err);
+        alert('EIA fetch failed. Showing simulated data. Check console for details.');
+        refreshData(); // fallback to simulation
+      } finally {
+        hideLoadingOverlay(); updateLastUpdateTime();
+      }
+    }
+
+    // ===== Charts, simulation & helpers (non-EIA) =====
+    function initializeCharts(){
+      const common={ responsive:true, maintainAspectRatio:false, interaction:{intersect:false,mode:'index'},
+        plugins:{ legend:{display:true,labels:{color:'var(--muted)'}},
+          tooltip:{backgroundColor:'rgba(0,0,0,.8)',titleColor:'#fff',bodyColor:'#fff',borderColor:'var(--pos)',borderWidth:1}},
+        scales:{y:{grid:{color:'rgba(255,255,255,.1)'},ticks:{color:'var(--muted)'}},
+                x:{grid:{color:'rgba(255,255,255,.1)'},ticks:{color:'var(--muted)',maxTicksLimit:20}}}};
+      priceChart = new Chart(document.getElementById('priceChart').getContext('2d'), {
+        type:'line',
+        data:{ labels:generateTimeLabels(24), datasets:[{ label:'RTO Average LMP ($/MWh)', data:generatePriceData(24,'RTO'), borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,.12)', tension:.4, fill:true, pointRadius:2, pointHoverRadius:5 }] },
+        options:common
+      });
+      loadChart = new Chart(document.getElementById('loadChart').getContext('2d'), {
+        type:'line',
+        data:{ labels:generateTimeLabels(24), datasets:[{ label:'System Load (MW)', data:generateLoadData(24), borderColor:'#fbbf24', backgroundColor:'rgba(251,191,36,.12)', tension:.4, fill:true, pointRadius:2, pointHoverRadius:5 }] },
+        options:common
+      });
+      forecastChart = new Chart(document.getElementById('forecastChart').getContext('2d'), {
+        type:'line',
+        data:{ labels:generateForecastLabels(),
+          datasets:[
+            { label:'Historical', data:[...generatePriceData(12,'RTO'), ...Array(12).fill(null)], borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,.12)', tension:.4, pointRadius:2, spanGaps:true },
+            { label:'Forecast', data:[...Array(12).fill(null), ...makeForecastFromSeries(generatePriceData(12,'RTO'),12)], borderColor:'#f87171', backgroundColor:'rgba(248,113,113,.12)', borderDash:[5,5], tension:.4, pointRadius:2, spanGaps:true }
+          ] },
+        options:common
+      });
+    }
+
+    function onRangeChange(e){
+      const r=e.target.value;
+      const box=document.getElementById('priceChartContainer');
+      if(r==='365d'){ box.classList.add('large-chart') } else { box.classList.remove('large-chart') }
+      updateChartsForSelectedZones();
+    }
+    function updateLastUpdateTime(){ document.getElementById('lastUpdate').textContent = new Date().toLocaleString(); }
+    function populatePrimaryZoneSelect(){
+      const sel = document.getElementById('primaryZone');
+      sel.innerHTML = pjmZones.map(z=>`<option value="${z.code}">${z.name}</option>`).join('');
+      sel.value='RTO';
+    }
+    function populateZoneGrid(){
+      const zoneGrid=document.getElementById('zoneGrid'); zoneGrid.innerHTML='';
+      pjmZones.forEach(zone=>{
+        const card=document.createElement('div'); card.className=`zone-card ${zone.selected?'selected':''}`;
+        card.role='button'; card.tabIndex=0;
+        card.addEventListener('click',()=>selectZone(zone.code));
+        card.addEventListener('keypress',e=>{ if(e.key==='Enter' || e.key===' '){ selectZone(zone.code); }});
+        const changePercent=(Math.random()-0.5)*10; const cls=changePercent>0?'positive':changePercent<0?'negative':'neutral';
+        card.innerHTML=`<div class="zone-name">${zone.name}</div>
+                        <div class="zone-price ${cls}">$${zone.price.toFixed(2)}</div>
+                        <div style="font-size:.8rem;margin-top:.3rem">${changePercent>0?'+':''}${changePercent.toFixed(1)}%</div>`;
+        zoneGrid.appendChild(card);
+      });
+    }
+    function selectZone(code){
+      if(compareMode){
+        const z=pjmZones.find(x=>x.code===code); z.selected=!z.selected;
+        selectedZones=pjmZones.filter(x=>x.selected).map(x=>x.code);
+        if(!selectedZones.length){ pjmZones[0].selected=true; selectedZones=['RTO']; }
+      } else {
+        pjmZones.forEach(x=>x.selected=false);
+        const z=pjmZones.find(x=>x.code===code); z.selected=true;
+        selectedZones=[code]; document.getElementById('selectedZoneName').textContent=z.name;
+        document.getElementById('primaryZone').value=code;
+      }
+      populateZoneGrid(); updateChartsForSelectedZones();
+    }
+    function toggleCompareMode(){
+      compareMode=!compareMode;
+      const btn=document.getElementById('compareBtn');
+      btn.textContent = compareMode ? 'Disable Compare' : 'Enable Compare';
+      if(!compareMode){
+        pjmZones.forEach(z=>z.selected=false); pjmZones[0].selected=true;
+        selectedZones=['RTO']; document.getElementById('selectedZoneName').textContent='RTO Average';
+      }
+      populateZoneGrid(); updateChartsForSelectedZones();
+    }
+
+    function updateChartsForSelectedZones(){
+      const r=document.getElementById('timeRange').value;
+      (compareMode && selectedZones.length>1) ? updateChartsComparison(r) : updateSingleZoneCharts(r, selectedZones[0]||'RTO');
+    }
+
+    function updateSingleZoneCharts(range, code){
+      const zone=pjmZones.find(z=>z.code===code), name=zone?zone.name:'RTO Average';
+      const priceBox=document.getElementById('priceChartContainer');
+      if(range==='365d'){
+        showLoadingOverlay();
+        setTimeout(()=>{
+          const d=generateHistoricalData(365,code); historicalData[code]=d;
+          priceChart.data.labels=d.map(x=>x.date.toLocaleDateString());
+          priceChart.data.datasets=[{label:`${name} LMP ($/MWh)`, data:d.map(x=>x.price), borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,.12)', tension:.12, fill:true, pointRadius:0, pointHoverRadius:3}];
+          priceChart.update();
+          document.getElementById('historicalSection').hidden=false; priceBox.classList.add('large-chart');
+          update365DayStats(code); hideLoadingOverlay();
+        },600);
+      } else {
+        document.getElementById('historicalSection').hidden=true; priceBox.classList.remove('large-chart');
+        const hours=getHoursFromRange(range), labels=generateTimeLabels(hours);
+        priceChart.data.labels=labels;
+        priceChart.data.datasets=[{label:`${name} LMP ($/MWh)`, data:generatePriceData(hours,code), borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,.12)', tension:.4, fill:true, pointRadius:hours>168?0:2, pointHoverRadius:5}];
+        priceChart.update();
+        loadChart.data.labels=labels; loadChart.data.datasets[0].data=generateLoadData(hours); loadChart.update();
+      }
+    }
+
+    function updateChartsComparison(range){
+      const colors=['#4ade80','#f87171','#fbbf24','#8b5cf6','#06b6d4','#f97316','#ef4444','#10b981'];
+      const priceBox=document.getElementById('priceChartContainer');
+      if(range==='365d'){
+        showLoadingOverlay(); setTimeout(()=>{
+          const sets=selectedZones.map((code,i)=>{
+            const z=pjmZones.find(x=>x.code===code);
+            const d=generateHistoricalData(365,code); historicalData[code]=d;
+            return {label:z.name, data:d.map(x=>x.price), borderColor:colors[i%colors.length], backgroundColor:colors[i%colors.length]+'20', tension:.12, fill:false, pointRadius:0, pointHoverRadius:3};
+          });
+          priceChart.data.labels=historicalData[selectedZones[0]].map(x=>x.date.toLocaleDateString());
+          priceChart.data.datasets=sets; priceChart.update();
+          document.getElementById('historicalSection').hidden=false; priceBox.classList.add('large-chart');
+          update365DayStats(selectedZones[0]); hideLoadingOverlay();
+        },800);
+      } else {
+        document.getElementById('historicalSection').hidden=true; priceBox.classList.remove('large-chart');
+        const hours=getHoursFromRange(range), labels=generateTimeLabels(hours);
+        priceChart.data.labels=labels;
+        priceChart.data.datasets=selectedZones.map((code,i)=>{
+          const z=pjmZones.find(x=>x.code===code);
+          return {label:z.name, data:generatePriceData(hours,code), borderColor:colors[i%colors.length], backgroundColor:colors[i%colors.length]+'20', tension:.4, fill:false, pointRadius:hours>168?0:2, pointHoverRadius:5};
         });
+        priceChart.update();
+      }
+    }
 
-        // Handle data source changes
-        document.getElementById('dataSource').addEventListener('change', function(e) {
-            // Future enhancement: switch between different data views
-        });
-    </script>
+    function getHoursFromRange(r){ return r==='1h'?1: r==='6h'?6: r==='24h'?24: r==='7d'?168: r==='30d'?720: 24; }
+    function showLoadingOverlay(){ document.getElementById('loadingOverlay').style.display='grid'; }
+    function hideLoadingOverlay(){ document.getElementById('loadingOverlay').style.display='none'; }
+
+    function generateTimeLabels(hours){
+      const labels=[]; const now=new Date();
+      if(hours>168){
+        const days = Math.floor(hours/24);
+        for(let i=days; i>0; i--){ const t=new Date(now.getTime()-i*24*60*60*1000); labels.push(t.toLocaleDateString()); }
+      } else {
+        for(let i=hours; i>0; i--){ const t=new Date(now.getTime()-i*60*60*1000); labels.push(t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})); }
+      }
+      return labels;
+    }
+
+    // --- Sim generators (for non-live tiles & history/compare) ---
+    function generatePriceData(points, code='RTO'){
+      const z=pjmZones.find(v=>v.code===code); let base=z?z.price:45;
+      const mult={ 'PSEG':1.1,'RECO':1.15,'JCPL':1.05,'DOM':1.02,'COMED':.95,'AEP':.97,'DEOK':.93,'DAYTON':.96}; base*=mult[code]||1;
+      const out=[]; for(let i=0;i<points;i++){
+        let p=base;
+        if(points<=24){ const h=i%24; p*= (h>=7&&h<=9)||(h>=17&&h<=20)? 1.5+Math.random()*.5 : (h<=6? .6+Math.random()*.3 : .8+Math.random()*.4); }
+        else if(points<=168){ const dow=Math.floor(i/24)%7, h=i%24; if(dow===0||dow===6) p*=.85; p*= (h>=7&&h<=20)? 1.2+Math.random()*.3 : .7+Math.random()*.2; }
+        else { const seasonal=.8+Math.sin((i/points)*2*Math.PI)*.3; p*= seasonal + Math.random()*.4; }
+        if(Math.random()<.02) p*=1.5+Math.random();
+        out.push(Math.max(5, +p.toFixed(2)));
+      }
+      return out;
+    }
+    function generateLoadData(points){
+      const out=[]; let base=85000;
+      for(let i=0;i<points;i++){
+        let l=base;
+        if(points<=168){ const h=i%24, d=Math.floor(i/24)%7; if(d===0||d===6) l*=.9; l*= (h>=8&&h<=18)? 1.1+Math.random()*.1 : (h<=6? .8+Math.random()*.1 : .9+Math.random()*.1); }
+        else { const seasonal=.9+Math.sin((i/points)*2*Math.PI)*.2; l*= seasonal + Math.random()*.1; }
+        out.push(Math.round(l));
+      }
+      return out;
+    }
+    function generateHistoricalData(days, code){
+      const out=[]; const now=new Date(); let base=pjmZones.find(z=>z.code===code)?.price||45;
+      for(let i=days;i>0;i--){
+        const d=new Date(now.getTime()-i*24*60*60*1000); const m=d.getMonth(); let price=base;
+        if(m>=5&&m<=8){ price*=1.3+Math.random()*.4 } else if(m>=11||m<=1){ price*=1.1+Math.random()*.3 } else { price*=.8+Math.random()*.4 }
+        if(Math.random()<.05){ price*=2+Math.random() }
+        out.push({date:d, price:Math.max(5, price), zone:code});
+      }
+      return out;
+    }
+    function calculate365DayStats(data){
+      const prices=data.map(d=>d.price);
+      const avg=prices.reduce((a,b)=>a+b,0)/prices.length;
+      const variance=prices.reduce((a,p)=>a+Math.pow(p-avg,2),0)/prices.length;
+      const std=Math.sqrt(variance);
+      const summer=data.filter(d=>{const m=d.date.getMonth(); return m>=5&&m<=7}).map(d=>d.price);
+      const winter=data.filter(d=>{const m=d.date.getMonth(); return m>=11||m<=1}).map(d=>d.price);
+      return {
+        high:Math.max(...prices),
+        low:Math.min(...prices),
+        average:avg,
+        stdDev:std,
+        highPriceDays:prices.filter(p=>p>100).length,
+        peakSeasonAvg: summer.length? summer.reduce((a,b)=>a+b,0)/summer.length:avg,
+        offPeakSeasonAvg: winter.length? winter.reduce((a,b)=>a+b,0)/winter.length:avg
+      }
+    }
+    function update365DayStats(code){
+      const d=historicalData[code]; if(!d) return; const s=calculate365DayStats(d);
+      document.getElementById('yearlyHigh').textContent=`$${s.high.toFixed(2)}`;
+      document.getElementById('yearlyLow').textContent=`$${s.low.toFixed(2)}`;
+      document.getElementById('yearlyAvg').textContent=`$${s.average.toFixed(2)}`;
+      document.getElementById('yearlyStd').textContent=`±$${s.stdDev.toFixed(2)} StdDev`;
+      document.getElementById('highPriceDays').textContent=s.highPriceDays;
+      document.getElementById('peakSeasonAvg').textContent=`$${s.peakSeasonAvg.toFixed(2)}`;
+      document.getElementById('offPeakSeasonAvg').textContent=`$${s.offPeakSeasonAvg.toFixed(2)}`;
+      const v = s.stdDev>30? 'High' : s.stdDev>15? 'Medium' : 'Low';
+      document.getElementById('volatility').textContent=v;
+      document.getElementById('peakPrice').textContent=`$${s.high.toFixed(2)}`;
+      document.getElementById('offPeakPrice').textContent=`$${s.low.toFixed(2)}`;
+      document.getElementById('avgPrice').textContent=`$${s.average.toFixed(2)}`;
+    }
+
+    function checkPriceAlerts(price){
+      const a=document.getElementById('alerts');
+      if(price>80){
+        a.innerHTML=`<div class="alert"><strong>⚠️ High Price:</strong> LMP > $80/MWh. Current: $${price.toFixed(2)}</div>`
+      } else if(price<20){
+        a.innerHTML=`<div class="alert" style="background:rgba(74,222,128,.16);border-color:var(--pos)"><strong>📉 Low Price:</strong> LMP < $20/MWh. Current: $${price.toFixed(2)}</div>`
+      } else { a.innerHTML='' }
+    }
+
+    function refreshData(){
+      const icon=document.getElementById('refreshIcon');
+      icon.innerHTML='<div class="loading"></div>';
+      setTimeout(()=>{ updateLastUpdateTime(); updateChartsForSelectedZones(); populateZoneGrid(); icon.textContent='🔄'; }, 500);
+    }
+  </script>
 </body>
 </html>
